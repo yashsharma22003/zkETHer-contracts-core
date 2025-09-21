@@ -1,6 +1,7 @@
 import { Barretenberg, Fr } from "@aztec/bb.js";
 import { ethers } from "ethers";
 
+
 // generateCommitment
 export default async function generateCommitment(): Promise<string> {
   // Initialize Barretenberg

@@ -5,6 +5,8 @@ import {Test, console} from "forge-std/Test.sol";
 import {HonkVerifier} from "../src/Verifier.sol";
 import {Mixer, IVerifier, Poseidon2} from "../src/Mixer.sol";
 import {IncrementalMerkleTree} from "../src/IncrementalMerkleTree.sol";
+import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ETHTornadoTest is Test {
     IVerifier public verifier;
@@ -12,8 +14,11 @@ contract ETHTornadoTest is Test {
     Poseidon2 public poseidon;
 
     address public recipient = makeAddr("recipient");
-
+  
+     ERC20Mock public token;
     function setUp() public {
+
+        token = new ERC20Mock();
         // Deploy Poseiden hasher contract
         poseidon = new Poseidon2();
 
@@ -21,7 +26,8 @@ contract ETHTornadoTest is Test {
         verifier = new HonkVerifier();
 
 
-        mixer = new Mixer(IVerifier(verifier), poseidon, 20);
+        mixer = new Mixer(IVerifier(verifier), poseidon, 20, IERC20(address(token)));
+        token.mint(address(this), 1000 ether);
     }
 
     function _getProof(
@@ -98,7 +104,8 @@ contract ETHTornadoTest is Test {
         console.logBytes32(_commitment);
         vm.expectEmit(true, false, false, true);
         emit Mixer.Deposit(_commitment, 0, block.timestamp);
-        mixer.deposit{value: mixer.DENOMINATION()}(_commitment);
+        token.approve(address(mixer), mixer.DENOMINATION());
+        mixer.deposit(_commitment,mixer.DENOMINATION());
     }
 
     function testMakeWithdrawal() public {
@@ -106,9 +113,10 @@ contract ETHTornadoTest is Test {
         (bytes32 _commitment, bytes32 _nullifier, bytes32 _secret) = _getCommitment();
         console.log("Commitment: ");
         console.logBytes32(_commitment);
-        vm.expectEmit(true, false, false, true);
+        // vm.expectEmit(true, false, false, true);
         emit Mixer.Deposit(_commitment, 0, block.timestamp);
-        mixer.deposit{value: mixer.DENOMINATION()}(_commitment);
+        token.approve(address(mixer), mixer.DENOMINATION());
+        mixer.deposit(_commitment,mixer.DENOMINATION());
 
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _commitment;
@@ -130,7 +138,8 @@ contract ETHTornadoTest is Test {
         console.logBytes32(_commitment);
         vm.expectEmit(true, false, false, true);
         emit Mixer.Deposit(_commitment, 0, block.timestamp);
-        mixer.deposit{value: mixer.DENOMINATION()}(_commitment);
+        token.approve(address(mixer), mixer.DENOMINATION());
+        mixer.deposit(_commitment,mixer.DENOMINATION());
 
         // create a proof
         bytes32[] memory leaves = new bytes32[](1);

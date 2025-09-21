@@ -16,11 +16,13 @@ pragma solidity ^0.8.24;
 import {IVerifier} from "./Verifier.sol";
 import {IncrementalMerkleTree, Poseidon2} from "./IncrementalMerkleTree.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
     IVerifier public immutable i_verifier; // Noir generated i_verifier contract
     uint256 public DENOMINATION = 0.001 ether; // the fixed amount of ETH that needs to be sent of the Mixer contract
 
+    IERC20 public token;
     mapping(bytes32 => bool) public s_nullifierHashes; // used nullifiers to prevent double spending
     mapping(bytes32 => bool) public s_commitments; // we store all commitments just to prevent accidental deposits with the same commitment
 
@@ -28,7 +30,7 @@ contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
     event Withdrawal(address to, bytes32 nullifierHash);
 
     error Mixer__DepositValueMismatch(uint256 expected, uint256 actual);
-    error Mixer__PaymentFailed(address recipient, uint256 amount);
+   
     error Mixer__NoteAlreadySpent(bytes32 nullifierHash);
     error Mixer__UnknownRoot(bytes32 root);
     error Mixer__InvalidWithdrawProof();
@@ -41,29 +43,31 @@ contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
      * @param _merkleTreeDepth the depth of deposits' Merkle Tree
      */
 
-    constructor(IVerifier _verifier, Poseidon2 _hasher, uint32 _merkleTreeDepth)
+    constructor(IVerifier _verifier, Poseidon2 _hasher, uint32 _merkleTreeDepth,IERC20 _token)
         IncrementalMerkleTree(_merkleTreeDepth, _hasher)
     {
         i_verifier = _verifier;
+        token = _token; 
     }
 
     /**
      * @dev Deposit funds into the contract. The caller must send (for ETH) or approve (for ERC20) value equal to or `denomination` of this instance.
      * @param _commitment the note commitment, which is Poseidon(nullifier + secret)
      */
-    function deposit(bytes32 _commitment) external payable nonReentrant {
+    function deposit(bytes32 _commitment, uint256 _amount) external nonReentrant {
         // check if the commitment is already added
         if(s_commitments[_commitment]) {
             revert Mixer__CommitmentAlreadyAdded(_commitment);
         }
         // check if the value sent is equal to the denomination
-        if (msg.value != DENOMINATION) {
-            revert Mixer__DepositValueMismatch({expected: DENOMINATION, actual: msg.value});
+        if (_amount != DENOMINATION) {
+            revert Mixer__DepositValueMismatch({expected: DENOMINATION, actual: _amount});
         }
 
         // add the commitment to the added commitments mapping
         s_commitments[_commitment] = true; 
 
+        token.transferFrom(msg.sender , address(this), _amount);
         // insert the commitment into the Merkle tree
         uint32 insertedIndex = _insert(_commitment); 
 
@@ -102,10 +106,8 @@ contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
         }
 
         s_nullifierHashes[_nullifierHash] = true; // mark the nullifier as used before sending the funds
-        (bool success,) = _recipient.call{value: DENOMINATION}("");
-        if (!success) {
-            revert Mixer__PaymentFailed({recipient: _recipient, amount: DENOMINATION});
-        }
+        
+        token.transfer(_recipient, DENOMINATION);
         emit Withdrawal(_recipient, _nullifierHash);
     }
 }
