@@ -13,11 +13,10 @@ interface ICompliance {
 
 contract zPool is IncrementalMerkleTree, ReentrancyGuard {
     IVerifier public immutable verifier;
-    Minter public minterToken;
+    IERC20 public minterToken;
     ICompliance public compliance;
-    address public depositFee;
+    Minter public minter;
     uint256 public DENOMINATION;
-    address public minterToken;        
     IERC20 public ptoken;
     uint256 constant depositFee = 0.001 ether; // Example fee, adjust as needed
     mapping(bytes32 => bool) public s_nullifierHashes;
@@ -30,18 +29,17 @@ contract zPool is IncrementalMerkleTree, ReentrancyGuard {
         IVerifier _verifier,
         Poseidon2 _hasher,
         uint32 _merkleTreeDepth,
-        // MintProxy _mintProxy,
-        ICompliance _compliance,
+         ICompliance _compliance,
         uint256 _denomination,
         IERC20 _ptoken,
-        address _minterToken
+        IERC20 _minterToken
     ) IncrementalMerkleTree(_merkleTreeDepth, _hasher) {
         verifier = _verifier;
-        // mintProxy = _mintProxy;
         compliance = _compliance;
         DENOMINATION = _denomination;
         ptoken = _ptoken;
         minterToken  = _minterToken;    
+        minter = new Minter();
     }
 
     function deposit(bytes32 _commitment, uint256 _amount, address _token) external payable nonReentrant {
@@ -52,10 +50,10 @@ contract zPool is IncrementalMerkleTree, ReentrancyGuard {
 
         s_commitments[_commitment] = true;
       
-       IERC20(token).transferFrom(msg.sender, address(this), amount);
-       IERC20(token).approve(address(mintProxy), amount);
-        // Mint wrapped token via MintProxy
-        minterToken.mintZToken(msg.sender, _token, _amount);
+       IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+       IERC20(_token).approve(address(minterToken), _amount);
+    
+        minter.mintZToken(msg.sender, _token, _amount);
 
         uint32 insertedIndex = _insert(_commitment);
         emit Deposit(_commitment, insertedIndex, block.timestamp);
@@ -81,10 +79,10 @@ contract zPool is IncrementalMerkleTree, ReentrancyGuard {
         s_nullifierHashes[_nullifierHash] = true;
 
         // Burn wrapped token via MintProxy
-        address zTokenAddr = mintProxy.tokenToZToken(_token);
+        address zTokenAddr = minter.tokenToZToken(_token);
         require(zTokenAddr != address(0), "Unsupported token");
 
-        minterToken.burnZToken(msg.sender, _token, DENOMINATION);
+        minter.burnZToken(msg.sender, _token, DENOMINATION);
 
         // Transfer underlying token to recipient
         // IERC20(_token).transfer(_recipient, DENOMINATION);
