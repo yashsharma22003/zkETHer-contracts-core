@@ -38,9 +38,27 @@ contract Minter is ERC3643 {
     }
 
     function mintZToken(address sender , address token, uint256 amount) external {
+           address zToken = tokenToZToken[token];
+        require(zToken != address(0), "Unsupported token");
+
+        // Transfer underlying from user
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+
+        // Mint wrapped token to user
+        mint(sender, amount);
+    
          }
     
         function burnZToken(address receiver , address token, uint256 amount) external {
+            address zToken = tokenToZToken[token];
+        require(zToken != address(0), "Unsupported token");
+
+        // Transfer underlying to user
+        IERC20(token).transfer(receiver, amount);
+
+        // Burn wrapped token from user
+        burn(receiver, amount);
+    
          }
 
 }
