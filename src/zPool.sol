@@ -5,7 +5,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Minter} from "./Minter.sol";
 import {IncrementalMerkleTree, Poseidon2} from "./IncrementalMerkleTree.sol";
-import {IVerifier} from "./Verifier.sol";
 
 interface ICompliance {
     function isCompliant(address user) external view returns (bool);
