@@ -61,7 +61,7 @@ contract DeployScript is Script{
         // Register mapping (DAI -> zDAI)
         minter.addToken(address(mockDai), address(zMockDai));
         console.log("Token mapping added: DAI => zDAI");
-        ZFactory zFactory = new ZFactory(poseidon, verifier,  20, 1 ether, IERC20(address(mockDai)), IERC20(address(zMockDai)));
+        ZFactory zFactory = new ZFactory(verifier, poseidon, 20, 1 ether, IERC20(address(mockDai)), IERC20(address(zMockDai)));
         console.log("ZFactory deployed at:", address(zFactory));
         vm.stopBroadcast();
     }
